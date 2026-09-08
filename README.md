@@ -1,8 +1,25 @@
 # Mandat de recherche d'intermédiation
 
 POC stateless de signature électronique construit avec Next.js App Router. La page
-racine (`/`) contient le formulaire administrateur ; les liens générés utilisent le
-paramètre `?data=` pour ouvrir le formulaire client.
+racine (`/`) contient le formulaire administrateur ; les liens générés utilisent un
+jeton signé (`?token=`) pour ouvrir le formulaire client. Les honoraires ne sont
+jamais acceptés depuis le navigateur lors de la génération du PDF : ils sont lus
+depuis les revendications signées du jeton.
+
+## Configuration requise
+
+Avant de démarrer ou de déployer l'application, définissez ces variables
+d'environnement côté serveur :
+
+```bash
+MANDATE_ADMIN_ID="admin-principal"
+MANDATE_ADMIN_PASSWORD="un-mot-de-passe-fort"
+MANDATE_LINK_SECRET="une-cle-secrete-aleatoire-longue"
+```
+
+`MANDATE_ADMIN_PASSWORD` authentifie l'administrateur qui crée le lien.
+`MANDATE_LINK_SECRET` signe les honoraires et l'identifiant administrateur avec
+HMAC-SHA-256. Les liens expirent après sept jours.
 
 ## Déploiement Vercel
 
