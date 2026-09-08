@@ -1,24 +1,27 @@
 import { NextRequest } from "next/server";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { verifyMandateLinkToken } from "../../lib/mandate-link";
 
 export const runtime = "nodejs";
 
 type Payload = {
-  admin: { fees: string };
   client: { lastName: string; firstName: string; address: string; operation: string };
   signature: string;
+  token: string;
 };
 
 function isPayload(value: unknown): value is Payload {
   if (!value || typeof value !== "object") return false;
-  const { admin, client, signature } = value as Payload;
-  return typeof admin?.fees === "string" && typeof client?.lastName === "string" && typeof client?.firstName === "string" && typeof client?.address === "string" && typeof client?.operation === "string" && typeof signature === "string" && signature.startsWith("data:image/png;base64,");
+  const { client, signature, token } = value as Payload;
+  return typeof client?.lastName === "string" && typeof client?.firstName === "string" && typeof client?.address === "string" && typeof client?.operation === "string" && typeof signature === "string" && signature.startsWith("data:image/png;base64,") && typeof token === "string";
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body: unknown = await request.json();
     if (!isPayload(body)) return Response.json({ error: "Données de mandat invalides." }, { status: 400 });
+    const mandateLink = verifyMandateLinkToken(body.token);
+    if (!mandateLink) return Response.json({ error: "Lien de signature invalide ou expiré." }, { status: 401 });
     const pdf = await PDFDocument.create();
     const page = pdf.addPage([595.28, 841.89]);
     const font = await pdf.embedFont(StandardFonts.Helvetica);
@@ -32,7 +35,7 @@ export async function POST(request: NextRequest) {
     text("Article 1 — Projet", 50, 590, 14, true);
     text(`Type d'opération : ${body.client.operation}`, 50, 565);
     text("Article 4 — Honoraires", 50, 510, 14, true);
-    text(`Montant des honoraires : ${body.admin.fees}`, 50, 485);
+    text(`Montant des honoraires : ${mandateLink.fees}`, 50, 485);
     text("Lu et approuvé, bon pour mandat", 50, 285, 12, true);
     const signatureBytes = Uint8Array.from(Buffer.from(body.signature.split(",")[1], "base64"));
     const signature = await pdf.embedPng(signatureBytes);
